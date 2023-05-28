@@ -58,20 +58,18 @@ app.post('/refreshtoken', (req, res) => {
 
 app.post('/logout', (req, res) => {
     const refreshToken = req.body.token
-    console.log("refreshToken: " + refreshToken);
 
     if (refreshToken == null) {
         return res.sendStatus(401)
-    } else {
-        var index = refreshTokens.indexOf(refreshToken);
-        if (index !== -1) {
-            refreshTokens.splice(index, 1);
-            return res.status(200).send({ message: "Successfully logged out" });
-        }
-
-        return res.status(401).send({ message: "The user does not exist or isn't logged in" });
-
     }
+    let index = refreshTokens.indexOf(refreshToken);
+    
+    if (index !== -1) {
+        refreshTokens.splice(index, 1);
+        return res.status(200).send({ message: "Successfully logged out" });
+    }
+
+    return res.status(401).send({ message: "The user does not exist or isn't logged in" });
 
 })
 
