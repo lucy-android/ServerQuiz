@@ -1,8 +1,10 @@
 require('dotenv').config()
 
+
 const express = require("express")
 const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
+const constants = require("./constants");
 
 const app = express()
 app.use(express.json())
@@ -15,7 +17,7 @@ app.post('/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(req.body.password, 10)
         const user = { name: req.body.name, password: hashedPassword }
         if (users.find(user => user.name === req.body.name)) {
-            res.status(400).json({ message: "Already exists" }).send()
+            res.status(400).json(constants.USER_EXISTS).send()
         } else {
             users.push(user)
             res.status(201).json({ name: user.name, hashedPassword }).send()
@@ -28,7 +30,7 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
     const user = users.find(user => user.name === req.body.name)
     if (user == null) {
-        return res.status(400).send('Cannot find user')
+        return res.status(400).send(constants.USER_NOT_EXISTS)
     }
 
     try {
@@ -38,7 +40,7 @@ app.post('/login', async (req, res) => {
         if (await bcrypt.compare(req.body.password, user.password)) {
             res.status(200).send({ accessToken: accessToken, refreshToken: refreshToken })
         } else {
-            res.status(401).send('Not allowed')
+            res.status(401).send(constants.NOT_ALLOWED)
         }
     } catch {
         res.status(500).send()
@@ -63,13 +65,13 @@ app.post('/logout', (req, res) => {
         return res.sendStatus(401)
     }
     let index = refreshTokens.indexOf(refreshToken);
-    
+
     if (index !== -1) {
         refreshTokens.splice(index, 1);
-        return res.status(200).send({ message: "Successfully logged out" });
+        return res.status(200).send({ message: constants.LOGGED_OUT });
     }
 
-    return res.status(401).send({ message: "The user does not exist or isn't logged in" });
+    return res.status(401).send({ message: constants.BAD_USER });
 
 })
 
