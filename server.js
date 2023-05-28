@@ -23,7 +23,6 @@ app.post('/register', async (req, res) => {
     } catch {
         res.status(500).send()
     }
-
 })
 
 app.post('/login', async (req, res) => {
@@ -51,11 +50,30 @@ app.post('/refreshtoken', (req, res) => {
     if (refreshToken == null) return res.sendStatus(401)
     if (!refreshTokens.includes(refreshToken)) return res.sendStatus(403)
     jwt.verify(refreshToken.toString(), process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-      if (err) return res.sendStatus(403)
-      const accessToken = generateAccessToken({ name: user.name })
-      res.json({ accessToken: accessToken })
+        if (err) return res.sendStatus(403)
+        const accessToken = generateAccessToken({ name: user.name })
+        res.json({ accessToken: accessToken })
     })
-  })
+})
+
+app.post('/logout', (req, res) => {
+    const refreshToken = req.body.token
+    console.log("refreshToken: " + refreshToken);
+
+    if (refreshToken == null) {
+        return res.sendStatus(401)
+    } else {
+        var index = refreshTokens.indexOf(refreshToken);
+        if (index !== -1) {
+            refreshTokens.splice(index, 1);
+            return res.status(200).send({ message: "Successfully logged out" });
+        }
+
+        return res.status(401).send({ message: "The user does not exist or isn't logged in" });
+
+    }
+
+})
 
 function generateAccessToken(user) {
     return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
