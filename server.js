@@ -36,7 +36,20 @@ app.post('/login', async (req, res) => {
     try {
         const accessToken = generateAccessToken(user)
         const refreshToken = jwt.sign(user, process.env.REFRESH_TOKEN_SECRET)
-        refreshTokens.push(refreshToken)
+        bcrypt.hash(refreshToken, constants.SALT_ROUNDS, (err, hash) => {
+            if (typeof refreshToken !== 'string' || typeof saltRounds !== 'number') {
+                console.log('Invalid input types to bcrypt.hash()');
+                return;
+            }
+            if (err) {
+                console.log(err);
+                return;
+            }
+
+            console.log(hash);
+            refreshTokens.push(hash)
+            console.log(refreshTokens)
+        });
         if (await bcrypt.compare(req.body.password, user.password)) {
             res.status(200).send({ accessToken: accessToken, refreshToken: refreshToken })
         } else {
