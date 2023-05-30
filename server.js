@@ -36,20 +36,8 @@ app.post('/login', async (req, res) => {
     try {
         const accessToken = generateAccessToken(user)
         const refreshToken = jwt.sign(user, process.env.REFRESH_TOKEN_SECRET)
-        bcrypt.hash(refreshToken, constants.SALT_ROUNDS, (err, hash) => {
-            if (typeof refreshToken !== 'string' || typeof saltRounds !== 'number') {
-                console.log('Invalid input types to bcrypt.hash()');
-                return;
-            }
-            if (err) {
-                console.log(err);
-                return;
-            }
-
-            console.log(hash);
-            refreshTokens.push(hash)
-            console.log(refreshTokens)
-        });
+        const hash = await bcrypt.hash(refreshToken, constants.SALT_ROUNDS)
+        refreshTokens.push(hash)
         if (await bcrypt.compare(req.body.password, user.password)) {
             res.status(200).send({ accessToken: accessToken, refreshToken: refreshToken })
         } else {
@@ -60,10 +48,12 @@ app.post('/login', async (req, res) => {
     }
 })
 
-app.post('/refreshtoken', (req, res) => {
+app.post('/refreshtoken', async (req, res) => {
     const refreshToken = req.body.token
     if (refreshToken == null) return res.sendStatus(401)
-    if (!refreshTokens.includes(refreshToken)) return res.sendStatus(403)
+    const hash = await bcrypt.hash(refreshToken, constants.SALT_ROUNDS);
+    if (!refreshTokens.includes(hash)) return res.sendStatus(403)
+
     jwt.verify(refreshToken.toString(), process.env.REFRESH_TOKEN_SECRET, (err, user) => {
         if (err) return res.sendStatus(403)
         const accessToken = generateAccessToken({ name: user.name })
@@ -71,18 +61,21 @@ app.post('/refreshtoken', (req, res) => {
     })
 })
 
-app.post('/logout', (req, res) => {
+app.post('/logout', async (req, res) => {
     const refreshToken = req.body.token
 
     if (refreshToken == null) {
         return res.sendStatus(401)
     }
-    let index = refreshTokens.indexOf(refreshToken);
+
+    const hash = await bcrypt.hash(refreshToken, constants.SALT_ROUNDS);
+    let index = refreshTokens.indexOf(hash);
 
     if (index !== -1) {
         refreshTokens.splice(index, 1);
         return res.status(200).send({ message: constants.LOGGED_OUT });
     }
+
 
     return res.status(401).send({ message: constants.BAD_USER });
 
