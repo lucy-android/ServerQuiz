@@ -5,6 +5,7 @@ const express = require("express")
 const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 const constants = require("./constants");
+const mysql = require('mysql2');
 
 const app = express()
 app.use(express.json())
@@ -73,6 +74,29 @@ app.post('/logout', (req, res) => {
 
     return res.status(401).send({ message: constants.BAD_USER });
 
+})
+
+
+app.get('/quotes', (req, res) => {
+    const connection = mysql.createConnection({
+        host: 'localhost',
+        user: 'root',
+        password: 'NEWPASSWORD',
+        database: 'first',
+    });
+
+    connection.connect(function (err) {
+        if (err) throw err;
+        console.log("Connected!");
+    });
+
+    var sql = "SELECT * FROM quote";
+
+    connection.query(sql, (err, result) => {
+        if (err) throw err;
+        console.log(result);
+        return res.status(200).send(result);
+    });
 })
 
 function generateAccessToken(user) {
