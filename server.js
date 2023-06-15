@@ -13,10 +13,28 @@ app.use(express.json())
 const users = []
 let refreshTokens = []
 
+const connection = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: 'NEWPASSWORD',
+    database: 'first',
+});
+
+
 app.post('/register', async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10)
         const user = { name: req.body.name, password: hashedPassword }
+        // var values = [connection.escape(req.body.name)];
+        // TODO I will start from out the next time
+        // TODO to figure out how to execute valid sql requests with data obtained from code.
+        let sql = "INSERT INTO users (firstname, lastname, login, hashedPassword) VALUES (\"Robin\", \"Hood\", \"robby\", \"12345678\")";
+
+        connection.query(sql, (err, result) => {
+            if (err) throw err;
+            console.log(result);
+        });
+
         if (users.find(user => user.name === req.body.name)) {
             res.status(400).json(constants.USER_EXISTS).send()
         } else {
@@ -78,12 +96,6 @@ app.post('/logout', (req, res) => {
 
 
 app.get('/quotes', (req, res) => {
-    const connection = mysql.createConnection({
-        host: 'localhost',
-        user: 'root',
-        password: 'NEWPASSWORD',
-        database: 'first',
-    });
 
     connection.connect(function (err) {
         if (err) throw err;
