@@ -116,13 +116,23 @@ app.post('/login', async (req, res) => {
 })
 
 app.post('/refreshtoken', (req, res) => {
+    // get the refresh token from the query and then verify is it valid
     const refreshToken = req.body.token
     if (refreshToken == null) return res.sendStatus(401)
-    if (!refreshTokens.includes(refreshToken)) return res.sendStatus(403)
-    jwt.verify(refreshToken.toString(), process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403)
-        const accessToken = generateAccessToken({ name: user.name })
-        res.json({ accessToken: accessToken })
+    let checkSQLStatement = `SELECT refreshtoken FROM users WHERE refreshtoken=\"${refreshToken}\"`;
+
+    connection.query(checkSQLStatement, async (err, result) => {
+        if (err) throw err;
+        console.log(result);
+        if (result.length == 0) {
+            return res.sendStatus(403);
+        }
+
+        jwt.verify(refreshToken.toString(), process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+            if (err) return res.sendStatus(403)
+            const accessToken = generateAccessToken({ login: user.login })
+            res.status(200).json({ accessToken: accessToken })
+        })
     })
 })
 
