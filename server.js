@@ -65,23 +65,54 @@ app.post('/register', async (req, res) => {
 })
 
 app.post('/login', async (req, res) => {
-    const user = users.find(user => user.name === req.body.name)
-    if (user == null) {
-        return res.status(400).send(constants.USER_NOT_EXISTS)
+    // check whether a user with such login exists
+
+    let findUserSQLstatement = `SELECT * FROM users WHERE login=\"${req.body.login}\"`;
+
+    connection.query(findUserSQLstatement, async (err, result) => {
+        if (err) throw err;
+        console.log(`query result for users with login ${req.body.login}: ` + result);
+
+        if (result.length == 0) {
+            console.log("User with such login does not exist!");
+            res.status(401).send(constants.NOT_ALLOWED)
         }
 
         try {
+
+            /* 
+               After the user has been found, get his or her password, and then compare the
+               hashed password from the database response to the password passed in the query.
+               If the comparison is successful, return tokens.
+            */
+
+            const entry = result[0];
+            const login = entry.login;
+            const hashedPassword = entry.hashedPassword;
+
+            const comparisonResult = await bcrypt.compare(req.body.password, hashedPassword);
+
+            if (comparisonResult) {
+                const user = { login: login }
                 const accessToken = generateAccessToken(user)
+
                 const refreshToken = jwt.sign(user, process.env.REFRESH_TOKEN_SECRET)
-        refreshTokens.push(refreshToken)
-        if (await bcrypt.compare(req.body.password, user.password)) {
+
+                let updateSQLStatement = `UPDATE users SET refreshtoken=\"${refreshToken}\" WHERE login=\"${user.login}\"`;
+
+                connection.query(updateSQLStatement, async (err, result) => {
+                    if (err) throw err;
+                    console.log(result);
                     res.status(200).send({ accessToken: accessToken, refreshToken: refreshToken })
+                })
             } else {
                 res.status(401).send(constants.NOT_ALLOWED)
             }
         } catch {
             res.status(500).send()
         }
+
+    });
 })
 
 app.post('/refreshtoken', (req, res) => {
