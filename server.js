@@ -10,9 +10,6 @@ const mysql = require('mysql2');
 const app = express()
 app.use(express.json())
 
-const users = []
-let refreshTokens = []
-
 const connection = mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -80,6 +77,8 @@ app.post('/login', async (req, res) => {
 
         try {
 
+            console.log(result);
+
             /* 
                After the user has been found, get his or her password, and then compare the
                hashed password from the database response to the password passed in the query.
@@ -87,6 +86,7 @@ app.post('/login', async (req, res) => {
             */
 
             const entry = result[0];
+            console.log(result[0]);
             const login = entry.login;
             const hashedPassword = entry.hashedPassword;
 
@@ -142,15 +142,21 @@ app.post('/logout', (req, res) => {
     if (refreshToken == null) {
         return res.sendStatus(401)
     }
-    let index = refreshTokens.indexOf(refreshToken);
+    jwt.verify(refreshToken.toString(), process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403)
+        // update database entry with such login
+        if (user) {
+            let updateSQLStatement = `UPDATE users SET refreshtoken=\"null\" WHERE login=\"${user.login}\"`;
 
-    if (index !== -1) {
-        refreshTokens.splice(index, 1);
-        return res.status(200).send({ message: constants.LOGGED_OUT });
-    }
-
-    return res.status(401).send({ message: constants.BAD_USER });
-
+            connection.query(updateSQLStatement, async (err, result) => {
+                if (err) throw err;
+                console.log(result);
+                return res.status(200).send({ message: constants.LOGGED_OUT });
+            })
+        } else {
+            return res.status(401).send({ message: constants.BAD_USER });
+        }
+    })
 })
 
 
