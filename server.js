@@ -162,18 +162,30 @@ app.post('/logout', (req, res) => {
 
 app.get('/quotes', (req, res) => {
 
-    connection.connect(function (err) {
-        if (err) throw err;
-        console.log("Connected!");
-    });
+    const accessToken = req.body.token
 
-    var sql = "SELECT * FROM quote";
+    if (accessToken == null) {
+        return res.sendStatus(401)
+    }
 
-    connection.query(sql, (err, result) => {
-        if (err) throw err;
-        console.log(result);
-        return res.status(200).send(result);
-    });
+    // verify the accessToken
+
+    // check whether the database contains an entry with refreshtoken not equal to null
+
+    jwt.verify(accessToken.toString(), process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403)
+
+        if (user) {
+            var sql = "SELECT * FROM quote";
+            connection.query(sql, (err, result) => {
+                if (err) throw err;
+                console.log(result);
+                return res.status(200).send(result);
+            });
+        } else {
+            return res.status(401).send({ message: constants.BAD_USER });
+        }
+    })
 })
 
 function generateAccessToken(user) {
