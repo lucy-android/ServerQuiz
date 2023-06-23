@@ -10,11 +10,12 @@ const mysql = require('mysql2');
 const app = express()
 app.use(express.json())
 
+
 const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'NEWPASSWORD',
-    database: 'first',
+    host: process.env.HOST_NAME,
+    user: process.env.USER_NAME,
+    password: process.env.PASSWORD,
+    database: process.env.DATABASE_NAME,
 });
 
 
@@ -32,7 +33,7 @@ app.post('/register', async (req, res) => {
 
             if (result.length != 0) {
                 console.log("User with such login already exists!");
-                res.status(400).send("User with such login already exists!")
+                res.status(constants.BAD_REQUEST).send("User with such login already exists!")
             }
         });
 
