@@ -25,7 +25,7 @@ app.post('/register', async (req, res) => {
            At first I need to check whether a user with such login already exists.
         */
 
-        let existLoginSql = `SELECT * FROM users WHERE login=\"${req.body.login}\"`;
+        let existLoginSql = `SELECT * FROM allUsers WHERE login=\"${req.body.login}\"`;
 
         connection.query(existLoginSql, (err, result) => {
             if (err) throw err;
@@ -48,8 +48,8 @@ app.post('/register', async (req, res) => {
 
         const user = { firstname: req.body.firstname, lastname: req.body.lastname, login: req.body.login, password: hashedPassword }
 
-        // and now we execute an sql statement to insert the new user into the users table
-        let insertSql = `INSERT INTO users (firstname, lastname, login, hashedPassword) 
+        // and now we execute an sql statement to insert the new user into the allUsers table
+        let insertSql = `INSERT INTO allUsers (firstname, lastname, login, hashedPassword) 
            VALUES ("${user.firstname}", "${user.lastname}", "${user.login}", "${user.password}")`;
 
         connection.query(insertSql, (err, result) => {
@@ -65,11 +65,11 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
     // check whether a user with such login exists
 
-    let findUserSQLstatement = `SELECT * FROM users WHERE login=\"${req.body.login}\"`;
+    let findUserSQLstatement = `SELECT * FROM allUsers WHERE login=\"${req.body.login}\"`;
 
     connection.query(findUserSQLstatement, async (err, result) => {
         if (err) throw err;
-        console.log(`query result for users with login ${req.body.login}: ` + result);
+        console.log(`query result for allUsers with login ${req.body.login}: ` + result);
 
         if (result.length == 0) {
             console.log("User with such login does not exist!");
@@ -99,7 +99,7 @@ app.post('/login', async (req, res) => {
 
                 const refreshToken = jwt.sign(user, process.env.REFRESH_TOKEN_SECRET)
 
-                let updateSQLStatement = `UPDATE users SET refreshtoken=\"${refreshToken}\" WHERE login=\"${user.login}\"`;
+                let updateSQLStatement = `UPDATE allUsers SET refreshtoken=\"${refreshToken}\" WHERE login=\"${user.login}\"`;
 
                 connection.query(updateSQLStatement, async (err, result) => {
                     if (err) throw err;
@@ -120,7 +120,7 @@ app.post('/refreshtoken', (req, res) => {
     // get the refresh token from the query and then verify is it valid
     const refreshToken = req.body.token
     if (refreshToken == null) return res.sendStatus(401)
-    let checkSQLStatement = `SELECT refreshtoken FROM users WHERE refreshtoken=\"${refreshToken}\"`;
+    let checkSQLStatement = `SELECT refreshtoken FROM allUsers WHERE refreshtoken=\"${refreshToken}\"`;
 
     connection.query(checkSQLStatement, async (err, result) => {
         if (err) throw err;
@@ -147,7 +147,7 @@ app.post('/logout', (req, res) => {
         if (err) return res.sendStatus(403)
         // update database entry with such login
         if (user) {
-            let updateSQLStatement = `UPDATE users SET refreshtoken=\"null\" WHERE login=\"${user.login}\"`;
+            let updateSQLStatement = `UPDATE allUsers SET refreshtoken=\"null\" WHERE login=\"${user.login}\"`;
 
             connection.query(updateSQLStatement, async (err, result) => {
                 if (err) throw err;
