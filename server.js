@@ -6,6 +6,7 @@ const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 const constants = require("./constants");
 const mysql = require('mysql2');
+const promise = require('mysql2/promise')
 
 const app = express()
 app.use(express.json())
@@ -16,50 +17,31 @@ const connection = mysql.createConnection({
     user: process.env.USER_NAME,
     password: process.env.PASSWORD,
     database: process.env.DATABASE_NAME,
-});
+}).promise();
 
 
 app.post('/register', async (req, res) => {
-    try {
-        /*
-           At first I need to check whether a user with such login already exists.
-        */
 
-        let existLoginSql = `SELECT * FROM allUsers WHERE login=\"${req.body.login}\"`;
+    let existLoginSql = `SELECT * FROM allUsers WHERE login=?`;
 
-        connection.query(existLoginSql, (err, result) => {
-            if (err) throw err;
-            console.log(result);
+    const [rows] = await connection.query(existLoginSql, [req.body.login]);
+    console.log(rows);
 
-            if (result.length != 0) {
-                console.log("User with such login already exists!");
-                res.status(constants.BAD_REQUEST).send("User with such login already exists!")
-            }
-        });
-
-        /*
-          if we arrive here, it means that the user has unique login
-        */
-
-        // here we hash the password provided for registration
-        const hashedPassword = await bcrypt.hash(req.body.password, 10)
-
-        // create a new user
-
-        const user = { firstname: req.body.firstname, lastname: req.body.lastname, login: req.body.login, password: hashedPassword }
-
-        // and now we execute an sql statement to insert the new user into the allUsers table
-        let insertSql = `INSERT INTO allUsers (firstname, lastname, login, hashedPassword) 
-           VALUES ("${user.firstname}", "${user.lastname}", "${user.login}", "${user.password}")`;
-
-        connection.query(insertSql, (err, result) => {
-            if (err) throw err;
-            console.log(result);
-            res.status(201).json({ firstname: user.firstname, lastname: user.lastname, login: user.login }).send()
-        });
-    } catch {
-        res.status(500).send()
+    if (rows.length != 0) {
+        console.log("User with such login already exists!");
+        res.status(constants.BAD_REQUEST).send("User with such login already exists!");
     }
+
+    const hashedPassword = await bcrypt.hash(req.body.password, 10)
+
+    const user = { firstname: req.body.firstname, lastname: req.body.lastname, login: req.body.login, password: hashedPassword }
+
+    const insertSql = `INSERT INTO allUsers (firstname, lastname, login, hashedPassword) VALUES (?,?,?,?)`;
+    await connection.query(insertSql, [user.firstname, user.lastname, user.login, user.password]);
+    if (result) {
+        res.status(201).json({ firstname: user.firstname, lastname: user.lastname, login: user.login }).send()
+    }
+
 })
 
 app.post('/login', async (req, res) => {
@@ -73,7 +55,7 @@ app.post('/login', async (req, res) => {
 
         if (result.length == 0) {
             console.log("User with such login does not exist!");
-            res.status(401).send(constants.NOT_ALLOWED)
+            res.status(constants.HTTP_STATUS_UNAUTHORIZED).send(constants.NOT_ALLOWED)
         }
 
         try {
@@ -104,10 +86,10 @@ app.post('/login', async (req, res) => {
                 connection.query(updateSQLStatement, async (err, result) => {
                     if (err) throw err;
                     console.log(result);
-                    res.status(200).send({ accessToken: accessToken, refreshToken: refreshToken })
+                    res.status(constants.HTTP_STATUS_OK).send({ accessToken: accessToken, refreshToken: refreshToken })
                 })
             } else {
-                res.status(401).send(constants.NOT_ALLOWED)
+                res.status(constants.HTTP_STATUS_UNAUTHORIZED).send(constants.NOT_ALLOWED)
             }
         } catch {
             res.status(500).send()
@@ -119,7 +101,7 @@ app.post('/login', async (req, res) => {
 app.post('/refreshtoken', (req, res) => {
     // get the refresh token from the query and then verify is it valid
     const refreshToken = req.body.token
-    if (refreshToken == null) return res.sendStatus(401)
+    if (refreshToken == null) return res.sendStatus(constants.HTTP_STATUS_UNAUTHORIZED)
     let checkSQLStatement = `SELECT refreshtoken FROM allUsers WHERE refreshtoken=\"${refreshToken}\"`;
 
     connection.query(checkSQLStatement, async (err, result) => {
@@ -132,7 +114,7 @@ app.post('/refreshtoken', (req, res) => {
         jwt.verify(refreshToken.toString(), process.env.REFRESH_TOKEN_SECRET, (err, user) => {
             if (err) return res.sendStatus(403)
             const accessToken = generateAccessToken({ login: user.login })
-            res.status(200).json({ accessToken: accessToken })
+            res.status(constants.HTTP_STATUS_OK).json({ accessToken: accessToken })
         })
     })
 })
@@ -141,7 +123,7 @@ app.post('/logout', (req, res) => {
     const refreshToken = req.body.token
 
     if (refreshToken == null) {
-        return res.sendStatus(401)
+        return res.sendStatus(constants.HTTP_STATUS_UNAUTHORIZED)
     }
     jwt.verify(refreshToken.toString(), process.env.REFRESH_TOKEN_SECRET, (err, user) => {
         if (err) return res.sendStatus(403)
@@ -152,10 +134,10 @@ app.post('/logout', (req, res) => {
             connection.query(updateSQLStatement, async (err, result) => {
                 if (err) throw err;
                 console.log(result);
-                return res.status(200).send({ message: constants.LOGGED_OUT });
+                return res.status(constants.HTTP_STATUS_OK).send({ message: constants.LOGGED_OUT });
             })
         } else {
-            return res.status(401).send({ message: constants.BAD_USER });
+            return res.status(constants.HTTP_STATUS_UNAUTHORIZED).send({ message: constants.BAD_USER });
         }
     })
 })
@@ -166,7 +148,7 @@ app.get('/quotes', (req, res) => {
     const accessToken = req.body.token
 
     if (accessToken == null) {
-        return res.sendStatus(401)
+        return res.sendStatus(constants.HTTP_STATUS_UNAUTHORIZED)
     }
 
     // verify the accessToken
@@ -181,10 +163,10 @@ app.get('/quotes', (req, res) => {
             connection.query(sql, (err, result) => {
                 if (err) throw err;
                 console.log(result);
-                return res.status(200).send(result);
+                return res.status(constants.HTTP_STATUS_OK).send(result);
             });
         } else {
-            return res.status(401).send({ message: constants.BAD_USER });
+            return res.status(constants.HTTP_STATUS_UNAUTHORIZED).send({ message: constants.BAD_USER });
         }
     })
 })
