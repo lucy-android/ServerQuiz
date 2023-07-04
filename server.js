@@ -29,7 +29,8 @@ app.post('/register', async (req, res) => {
 
     if (rows.length != 0) {
         console.log("User with such login already exists!");
-        res.status(constants.BAD_REQUEST).send("User with such login already exists!");
+        return res.status(constants.HTTP_STATUS_BAD_REQUEST).send("User with such login already exists!");
+
     }
 
     const hashedPassword = await bcrypt.hash(req.body.password, 10)
@@ -37,11 +38,10 @@ app.post('/register', async (req, res) => {
     const user = { firstname: req.body.firstname, lastname: req.body.lastname, login: req.body.login, password: hashedPassword }
 
     const insertSql = `INSERT INTO allUsers (firstname, lastname, login, hashedPassword) VALUES (?,?,?,?)`;
-    await connection.query(insertSql, [user.firstname, user.lastname, user.login, user.password]);
+    const result = await connection.query(insertSql, [user.firstname, user.lastname, user.login, user.password]);
     if (result) {
-        res.status(201).json({ firstname: user.firstname, lastname: user.lastname, login: user.login }).send()
+        return res.status(201).json({ firstname: user.firstname, lastname: user.lastname, login: user.login }).send()
     }
-
 })
 
 app.post('/login', async (req, res) => {
