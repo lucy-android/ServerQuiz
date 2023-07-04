@@ -22,27 +22,36 @@ const connection = mysql.createConnection({
 
 app.post('/register', async (req, res) => {
 
-    let existLoginSql = `SELECT * FROM allUsers WHERE login=?`;
+    const [rows] = await connection.query(constants.EXIST_LOGIN_SQL, [req.body.login]);
 
-    const [rows] = await connection.query(existLoginSql, [req.body.login]);
     console.log(rows);
 
-    if (rows.length != 0) {
-        console.log("User with such login already exists!");
-        return res.status(constants.HTTP_STATUS_BAD_REQUEST).send("User with such login already exists!");
+    if (rows.length !== 0) {
+        console.log(constants.USER_EXISTS);
 
+        return res
+            .status(constants.HTTP_STATUS_BAD_REQUEST)
+            .send(constants.USER_EXISTS);
     }
 
-    const hashedPassword = await bcrypt.hash(req.body.password, 10)
+    const hashedPassword = await bcrypt.hash(req.body.password, constants.SALT_ROUNDS);
 
-    const user = { firstname: req.body.firstname, lastname: req.body.lastname, login: req.body.login, password: hashedPassword }
+    const user = {
+        firstname: req.body.firstname,
+        lastname: req.body.lastname,
+        login: req.body.login,
+        password: hashedPassword
+    };
 
-    const insertSql = `INSERT INTO allUsers (firstname, lastname, login, hashedPassword) VALUES (?,?,?,?)`;
-    const result = await connection.query(insertSql, [user.firstname, user.lastname, user.login, user.password]);
+    const result = await connection.query(constants.INSERT_SQL, [user.firstname, user.lastname, user.login, user.password]);
+
     if (result) {
-        return res.status(201).json({ firstname: user.firstname, lastname: user.lastname, login: user.login }).send()
+        return res
+            .status(constants.HTTP_STATUS_CREATED)
+            .json({ firstname: user.firstname, lastname: user.lastname, login: user.login })
+            .send();
     }
-})
+});
 
 app.post('/login', async (req, res) => {
     // check whether a user with such login exists
