@@ -54,61 +54,40 @@ app.post('/register', async (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
-    // check whether a user with such login exists
 
-    let findUserSQLstatement = `SELECT * FROM allUsers WHERE login=\"${req.body.login}\"`;
+    let findUserSQLstatement = constants.EXIST_LOGIN_SQL;
 
-    connection.query(findUserSQLstatement, async (err, result) => {
-        if (err) throw err;
-        console.log(`query result for allUsers with login ${req.body.login}: ` + result);
+    const [rows] = await connection.query(findUserSQLstatement, [req.body.login]);
+    if (rows.length == 0) {
+        console.log(constants.USER_NOT_EXISTS);
+        return res.status(constants.HTTP_STATUS_UNAUTHORIZED).send(constants.NOT_ALLOWED);
+    }
+    const entry = rows[0];
+    const login = entry.login;
+    const hashedPassword = entry.hashedPassword;
 
-        if (result.length == 0) {
-            console.log("User with such login does not exist!");
-            res.status(constants.HTTP_STATUS_UNAUTHORIZED).send(constants.NOT_ALLOWED)
-        }
+    const comparisonResult = await bcrypt.compare(req.body.password, hashedPassword);
 
-        try {
+    if (comparisonResult) {
+        const user = { login: login }
+        const accessToken = generateAccessToken(user)
 
-            console.log(result);
+        const refreshToken = jwt.sign(user, process.env.REFRESH_TOKEN_SECRET)
 
-            /* 
-               After the user has been found, get his or her password, and then compare the
-               hashed password from the database response to the password passed in the query.
-               If the comparison is successful, return tokens.
-            */
+        let updateSQLStatement = constants.UPDATE_REFRESH_SQL;
 
-            const entry = result[0];
-            console.log(result[0]);
-            const login = entry.login;
-            const hashedPassword = entry.hashedPassword;
+        const result = await connection.query(updateSQLStatement, [refreshToken, user.login]);
+        console.log(result);
+        return res
+            .status(constants.HTTP_STATUS_OK)
+            .send({ accessToken: accessToken, refreshToken: refreshToken })
+    } else {
+        res.status(constants.HTTP_STATUS_UNAUTHORIZED).send(constants.NOT_ALLOWED)
+    }
+});
 
-            const comparisonResult = await bcrypt.compare(req.body.password, hashedPassword);
-
-            if (comparisonResult) {
-                const user = { login: login }
-                const accessToken = generateAccessToken(user)
-
-                const refreshToken = jwt.sign(user, process.env.REFRESH_TOKEN_SECRET)
-
-                let updateSQLStatement = `UPDATE allUsers SET refreshtoken=\"${refreshToken}\" WHERE login=\"${user.login}\"`;
-
-                connection.query(updateSQLStatement, async (err, result) => {
-                    if (err) throw err;
-                    console.log(result);
-                    res.status(constants.HTTP_STATUS_OK).send({ accessToken: accessToken, refreshToken: refreshToken })
-                })
-            } else {
-                res.status(constants.HTTP_STATUS_UNAUTHORIZED).send(constants.NOT_ALLOWED)
-            }
-        } catch {
-            res.status(500).send()
-        }
-
-    });
-})
 
 app.post('/refreshtoken', (req, res) => {
-    // get the refresh token from the query and then verify is it valid
     const refreshToken = req.body.token
     if (refreshToken == null) return res.sendStatus(constants.HTTP_STATUS_UNAUTHORIZED)
     let checkSQLStatement = `SELECT refreshtoken FROM allUsers WHERE refreshtoken=\"${refreshToken}\"`;
