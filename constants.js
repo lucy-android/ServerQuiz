@@ -20,6 +20,7 @@ module.exports = {
     // sql statements
     EXIST_LOGIN_SQL : `SELECT * FROM allUsers WHERE login=?`,
     INSERT_SQL : `INSERT INTO allUsers (firstname, lastname, login, hashedPassword) VALUES (?,?,?,?)`,
-    UPDATE_REFRESH_SQL : `UPDATE allUsers SET refreshtoken=? WHERE login=?`
+    UPDATE_REFRESH_SQL : `UPDATE allUsers SET refreshtoken=? WHERE login=?`,
+    SELECT_REFRESH_SQL : `SELECT refreshtoken FROM allUsers WHERE refreshtoken=?`
 
 };

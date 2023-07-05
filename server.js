@@ -87,23 +87,21 @@ app.post('/login', async (req, res) => {
 });
 
 
-app.post('/refreshtoken', (req, res) => {
+app.post('/refreshtoken', async (req, res) => {
     const refreshToken = req.body.token
     if (refreshToken == null) return res.sendStatus(constants.HTTP_STATUS_UNAUTHORIZED)
-    let checkSQLStatement = `SELECT refreshtoken FROM allUsers WHERE refreshtoken=\"${refreshToken}\"`;
+    let checkSQLStatement = constants.SELECT_REFRESH_SQL;
 
-    connection.query(checkSQLStatement, async (err, result) => {
-        if (err) throw err;
-        console.log(result);
-        if (result.length == 0) {
-            return res.sendStatus(403);
-        }
+    const [rows] = await connection.query(checkSQLStatement, [refreshToken]);
 
-        jwt.verify(refreshToken.toString(), process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-            if (err) return res.sendStatus(403)
-            const accessToken = generateAccessToken({ login: user.login })
-            res.status(constants.HTTP_STATUS_OK).json({ accessToken: accessToken })
-        })
+    if (rows.length == 0) {
+        return res.sendStatus(constants.FORBIDDEN);
+    }
+
+    jwt.verify(refreshToken.toString(), process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+        if (err) return res.sendStatus(constants.FORBIDDEN)
+        const accessToken = generateAccessToken({ login: user.login })
+        return res.status(constants.HTTP_STATUS_OK).json({ accessToken: accessToken })
     })
 })
 
@@ -114,7 +112,7 @@ app.post('/logout', (req, res) => {
         return res.sendStatus(constants.HTTP_STATUS_UNAUTHORIZED)
     }
     jwt.verify(refreshToken.toString(), process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403)
+        if (err) return res.sendStatus(constants.FORBIDDEN)
         // update database entry with such login
         if (user) {
             let updateSQLStatement = `UPDATE allUsers SET refreshtoken=\"null\" WHERE login=\"${user.login}\"`;
@@ -144,7 +142,7 @@ app.get('/quotes', (req, res) => {
     // check whether the database contains an entry with refreshtoken not equal to null
 
     jwt.verify(accessToken.toString(), process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403)
+        if (err) return res.sendStatus(constants.FORBIDDEN)
 
         if (user) {
             var sql = "SELECT * FROM quote";
