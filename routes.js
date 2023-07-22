@@ -50,7 +50,7 @@ router.post(constants.REGISTER, async (req, res) => {
             return res.status(constants.INTERNAL_SERVER_ERROR).send()
         }
     } catch (error) {
-        console.error("Error executing the query:", error)
+        console.error(error)
         return res.status(constants.INTERNAL_SERVER_ERROR).send()
     } finally {
         if (connection) connection.release()
@@ -125,7 +125,7 @@ router.post(constants.REFRESHTOKEN, async (req, res) => {
             return res.sendStatus(constants.FORBIDDEN)
         }
     } catch (error) {
-        console.error("Error executing the query:", error)
+        console.error(error)
         return res.sendStatus(constants.INTERNAL_SERVER_ERROR)
     } finally {
         if (connection) {
