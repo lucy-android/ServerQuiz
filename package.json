@@ -2,7 +2,7 @@
   "name": "server-chemistry-quiz",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "devStart": "nodemon server.js"
   },
@@ -14,6 +14,7 @@
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.0",
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "mysql2": "3.3.3"
   }
 }
